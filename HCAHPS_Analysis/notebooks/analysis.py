@@ -14,7 +14,7 @@ sns.set(style="whitegrid")
 # Create Output Folders
 # =========================================================
 
-base_folder = "outputs"
+base_folder = "/outputs"
 fig_folder = os.path.join(base_folder, "figures")
 data_folder = os.path.join(base_folder, "datasets")
 
@@ -25,11 +25,11 @@ os.makedirs(data_folder, exist_ok=True)
 # Load Data
 # =========================================================
 
-state_results = pd.read_csv("data/state_results.csv")
-measures = pd.read_csv("data/measures.csv")
-states = pd.read_csv("data/states.csv")
-reports = pd.read_csv("data/reports.csv")
-responses = pd.read_csv("data/responses.csv")
+state_results = pd.read_csv("HCAHPS_Analysis/data/state_results.csv")
+measures = pd.read_csv("HCAHPS_Analysis/data/measures.csv")
+states = pd.read_csv("HCAHPS_Analysis/data/states.csv")
+reports = pd.read_csv("HCAHPS_Analysis/data/reports.csv")
+responses = pd.read_csv("HCAHPS_Analysis/data/responses.csv")
 
 # =========================================================
 # Clean Column Names
