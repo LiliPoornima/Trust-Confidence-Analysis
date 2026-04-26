@@ -1,3 +1,5 @@
+from scipy.stats import f_oneway
+from scipy.stats import ttest_ind
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +16,7 @@ sns.set(style="whitegrid")
 # Create Output Folders
 # =========================================================
 
-base_folder = "/outputs"
+base_folder = "HCAHPS_Analysis/outputs"
 fig_folder = os.path.join(base_folder, "figures")
 data_folder = os.path.join(base_folder, "datasets")
 
@@ -25,11 +27,15 @@ os.makedirs(data_folder, exist_ok=True)
 # Load Data
 # =========================================================
 
+# Core survey results (percentages)
 state_results = pd.read_csv("HCAHPS_Analysis/data/state_results.csv")
+# Meaning of each metric
 measures = pd.read_csv("HCAHPS_Analysis/data/measures.csv")
-states = pd.read_csv("HCAHPS_Analysis/data/states.csv")
+states = pd.read_csv("HCAHPS_Analysis/data/states.csv")  # Region/grouping info
+# Time periods (trend analysis)
 reports = pd.read_csv("HCAHPS_Analysis/data/reports.csv")
-responses = pd.read_csv("HCAHPS_Analysis/data/responses.csv")
+responses = pd.read_csv(
+    "HCAHPS_Analysis/data/responses.csv")  # Response rate data
 
 # =========================================================
 # Clean Column Names
@@ -39,7 +45,7 @@ for df in [state_results, measures, states, reports, responses]:
     df.columns = df.columns.str.strip()
 
 # =========================================================
-# Merge Datasets
+# Merge Datasets using LEFT JOINs to preserve all survey results
 # =========================================================
 
 df = pd.merge(state_results, measures, on="Measure ID", how="left")
@@ -54,6 +60,7 @@ responses["Response Rate (%)"] = pd.to_numeric(
     responses["Response Rate (%)"], errors="coerce"
 )
 
+# Average response rate per State per Time Period
 responses_grouped = responses.groupby(
     ["Release Period", "State"]
 )["Response Rate (%)"].mean().reset_index()
@@ -68,7 +75,7 @@ df = pd.merge(
 df.to_csv(f"{data_folder}/combined_dataset.csv", index=False)
 
 # =========================================================
-# Create Trust and Confidence Scores
+# Create Trust and Confidence Scores - composite variables
 # =========================================================
 
 trust_measures = [
@@ -146,6 +153,42 @@ else:
     print("Result: Fail to Reject H0 (Not Significant)")
 
 # =========================================================
+# T-Test: Comparing High vs Low Trust Groups
+# =========================================================
+
+
+# Create groups
+high_trust = final_df[final_df["Trust_Score"]
+                      >= final_df["Trust_Score"].median()]
+low_trust = final_df[final_df["Trust_Score"]
+                     < final_df["Trust_Score"].median()]
+
+# T-test
+t_stat, p_val = ttest_ind(
+    high_trust["Confidence_Score"],
+    low_trust["Confidence_Score"]
+)
+
+print("\nT-Test Results")
+print("T-stat:", round(t_stat, 4))
+print("P-value:", round(p_val, 6))
+
+# ========================================================
+# ANOVA: Comparing Confidence Scores Across Regions
+# =========================================================
+
+
+# Group by region
+groups = [group["Confidence_Score"].values
+          for name, group in final_df.groupby("Region")]
+
+f_stat, p_val = f_oneway(*groups)
+
+print("\nANOVA Results")
+print("F-stat:", round(f_stat, 4))
+print("P-value:", round(p_val, 6))
+
+# =========================================================
 # Simple Linear Regression
 # =========================================================
 
@@ -205,12 +248,29 @@ if shapiro_p > 0.05:
 else:
     print("Residuals are not normally distributed")
 
+# -------------------------------
+# Residual Scatter Plot
+# -------------------------------
+plt.figure(figsize=(7, 5))
+
+sns.scatterplot(x=predictions, y=residuals)
+
+plt.axhline(y=0, color='red', linestyle='--')
+
+plt.title("Residual Plot (Model Fit Check)")
+plt.xlabel("Predicted Confidence Score")
+plt.ylabel("Residuals")
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_folder, "residual_scatter.png"), dpi=150)
+plt.close()
+
 # =========================================================
-# 📊 VISUALIZATIONS (FOR PRESENTATION)
+#  VISUALIZATIONS
 # =========================================================
 
 # -------------------------------
-# 1. DISTRIBUTIONS (Slide 6)
+# 1. DISTRIBUTIONS
 # -------------------------------
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -226,7 +286,7 @@ plt.close()
 
 
 # -------------------------------
-# 2. BOXPLOT (Slide 6)
+# 2. BOXPLOT
 # -------------------------------
 plt.figure(figsize=(6, 4))
 
@@ -240,7 +300,7 @@ plt.close()
 
 
 # -------------------------------
-# 3. CORRELATION HEATMAP (Slide 7)
+# 3. CORRELATION HEATMAP
 # -------------------------------
 plt.figure(figsize=(8, 6))
 
@@ -270,7 +330,7 @@ plt.close()
 
 
 # -------------------------------
-# 4. REGRESSION PLOT (Slide 8)
+# 4. REGRESSION PLOT
 # -------------------------------
 plt.figure(figsize=(6, 4))
 
@@ -290,7 +350,7 @@ plt.close()
 
 
 # -------------------------------
-# 5. TREND OVER TIME (Extra Insight)
+# 5. TREND OVER TIME
 # -------------------------------
 final_df["Year"] = final_df["Release Period"].str[-4:]
 
@@ -308,7 +368,7 @@ plt.close()
 
 
 # -------------------------------
-# 6. STATE-LEVEL SCATTER (Extra High Marks)
+# 6. STATE-LEVEL SCATTER
 # -------------------------------
 plt.figure(figsize=(7, 5))
 
@@ -323,4 +383,58 @@ plt.title("State-Level Trust vs Confidence")
 
 plt.tight_layout()
 plt.savefig(f"{fig_folder}/state_scatter.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+
+# =========================================================
+# ANOVA MEAN PLOT (Better Interpretation)
+# =========================================================
+
+plt.figure(figsize=(8, 5))
+
+sns.pointplot(
+    data=final_df,
+    x="Region",
+    y="Confidence_Score",
+    errorbar="sd"
+)
+
+plt.title("Mean Confidence Score by Region (ANOVA Insight)")
+plt.xlabel("Region")
+plt.ylabel("Mean Confidence Score")
+
+plt.xticks(rotation=45)
+
+plt.tight_layout()
+plt.savefig(f"{fig_folder}/anova_mean_plot.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+# =========================================================
+# T-TEST VISUALIZATION (High vs Low Trust)
+# =========================================================
+
+# Create a new column for grouping
+final_df["Trust_Group"] = np.where(
+    final_df["Trust_Score"] >= final_df["Trust_Score"].median(),
+    "High Trust",
+    "Low Trust"
+)
+
+plt.figure(figsize=(7, 5))
+
+sns.boxplot(
+    data=final_df,
+    x="Trust_Group",
+    y="Confidence_Score"
+)
+
+plt.title("T-Test Visualization: Confidence by Trust Group")
+plt.xlabel("Trust Group")
+plt.ylabel("Confidence Score")
+
+plt.tight_layout()
+
+#  Save chart
+plt.savefig(os.path.join(fig_folder, "ttest_boxplot.png"), dpi=150)
+
 plt.close()
