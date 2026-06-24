@@ -215,19 +215,4 @@ Using descriptive analytics, inferential statistics, and predictive modelling, t
 
 ---
 
-## Team Members
 
-- Durangi Abeykoon
-- Theekshana Ranasinghe
-- Poornima Liyanage
-- Lahiruni Ariyawansa
-
----
-
-## Academic Context
-
-**Module:** Theory and Practices in Statistical Modelling (IT3011)
-
-**Specialization:** Data Science
-
-**Institution:** SLIIT
